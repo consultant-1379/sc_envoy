@@ -1,0 +1,1629 @@
+syntax = "proto3";
+
+package envoy.extensions.filters.http.eric_proxy.v3;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+
+import "udpa/annotations/status.proto";
+import "validate/validate.proto";
+
+option java_package = "io.envoyproxy.envoy.extensions.filters.http.eric_proxy.v3";
+option java_outer_classname = "EricProxyProto";
+option java_multiple_files = true;
+option go_package = "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/eric_proxy/v3;eric_proxyv3";
+option (udpa.annotations.file_status).package_version_status = ACTIVE;
+
+// [#protodoc-title: HTTP Eric-Proxy Filter]
+// [#extension: envoy.filters.http.eric_proxy]
+
+// Possible IP Family enumerations
+enum IPFamily {
+  // Default Not Setting any IP Family
+  Default = 0;
+
+  // IPv4 preference
+  IPv4 = 1;
+
+  // IPv6 preference
+  IPv6 = 2;
+
+  // Both IPv4 and IPv6
+  DualStack = 3;
+}
+
+// Possible alarm types
+enum EricProxyAlarmEventType {
+  NO_FQDN = 0;
+  NO_IPV4 = 1;
+  NO_IPV6 = 2;
+}
+
+// RoutingBehaviour corresponds to the action in YANG configuration.
+// The RoutingBehaviour is only used to set correct response cause codes.
+// Envoy-wise, we have only round-robin routing and the structure of the
+// (aggregated) cluster + failover-profile determines the routing behaviour.
+enum RoutingBehaviour {
+  NOT_USED = 0;
+
+  // Action-route-round-robin
+  ROUND_ROBIN = 2;
+
+  // Action-route-preferred
+  PREFERRED = 3;
+
+  // Action-route-strict and the discovered/configured pool has at least one endpoint
+  STRICT = 4;
+
+  // Strict routing with Dynamic Forwrding Proxy
+  STRICT_DFP = 5;
+
+  // Action-route-remote-round-robin
+  REMOTE_ROUND_ROBIN = 6;
+
+  // Action-route-remote-preferred
+  REMOTE_PREFERRED = 7;
+}
+
+// Which routing data to preserve if indirect routing is detected (= to another SCP)
+enum PreserveIfIndirect {
+  // Nothing to preserve (default)
+  NOTHING = 0;
+
+  // Preserve the 3gpp-Sbi-target-apiRoot header if indirect routing (SCP),
+  // Remove the header if direct routing (NF)
+  TARGET_API_ROOT = 1;
+
+  // Preserve the absolute path in the URL if indirect routing (SCP),
+  // use the relative path if direct routing (to NF)
+  ABSOLUTE_PATH = 2;
+}
+
+// ActionRejectMessage content-type options
+enum MessageBodyType {
+  // JSON-encoded
+  JSON = 0;
+
+  // Plain text
+  PLAIN_TEXT = 1;
+}
+
+// ActionLogText log-levels. These map to Envoy's levels.
+// The enum is not called LogLevel because protobuf has LogLevel pre-defined
+enum LoggingLevel {
+  // debug comes first and is default
+  DEBUG = 0;
+
+  TRACE = 1;
+
+  INFO = 2;
+
+  WARN = 3;
+
+  ERROR = 4;
+}
+
+// ActionAddHeader if-exists routing_behaviour
+enum IfExists {
+  // If the header already exists, do nothing. This is the default.
+  NO_ACTION = 0;
+
+  // If the header already exists, add another header instance.
+  ADD = 1;
+
+  // If the header already exists, replace all existing header instances with the new value
+  REPLACE = 2;
+}
+
+// Indicates if this filter is used in a SEPP or SCP. Default is SCP.
+enum NodeType {
+  SCP = 0;
+  SEPP = 1;
+}
+
+// Indicates if nf-peer-info handling is on/off.
+enum NfPeerInfo {
+  OFF = 0;
+  ON = 1;
+}
+
+// Specifies the part of URI to be transformed
+enum Transformation {
+  // Default transformation could be used to set any of the
+  // following transformations if nothing is configured
+  DEFAULT = 0;
+
+  // Only label part of the URI would be transformed
+  ONLY_LABEL = 1;
+
+  // Only FQDN part of the URI would be transformed
+  ONLY_FQDN = 2;
+
+  // No transformation would take place
+  NO_TRANSFORMATION = 3;
+}
+
+// Which discovery parameters to preserve if indirect routing is detected (= to another SCP/SEPP)
+message PreserveDiscParamIfIndirect {
+  oneof preserve_disc_param_if_indirect {
+    // List of discovery parameters to preserve
+    StringList preserve_params = 1;
+
+    // preserve all discovery parameters
+    bool preserve_all = 2;
+  }
+}
+
+// Protobuf does not allow a "repeated string" inside a "oneof", hence this
+// type:
+message StringList {
+  repeated string values = 1;
+}
+
+// [#next-free-field: 6]
+message EricProxyAlarmEvent {
+  EricProxyAlarmEventType type = 1 [(validate.rules).enum = {defined_only: true}];
+
+  // Timestamp for event.
+  google.protobuf.Timestamp timestamp = 2;
+
+  // Roaming partner name
+  string roaming_partner = 3;
+
+  // Nrf Pool name
+  string nrf_pool_name = 4;
+
+  // Message
+  string message = 5;
+}
+
+// Eric_proxy filter config.
+// [#next-free-field: 36]
+message EricProxyConfig {
+  //    Pass configuration data from Netconf into C++ filter:
+  //
+  //        List of Routing-Cases, containing
+  //            List of Routing-Data
+  //            List of Routing-Rules
+  //        Pool data and Roaming-Partner data for target-apiRoot
+  //        and strict/preferred/round-robin routing
+
+  // The name of the filter. Used for log-messages to be able to differentiate
+  // multiple instances of this filter in a chain.
+  string name = 1;
+
+  // Indicates if this filter is used in a SEPP or SCP
+  NodeType node_type = 7;
+
+  // Notifier sink name
+  string event_log_path = 26;
+
+  // List of filter-cases
+  repeated FilterCase filter_cases = 2;
+
+  // Filter-cases for request direction
+  RequestFilterConfig request_filter_cases = 23;
+
+  // Filter-cases for response direction
+  ResponseFilterConfig response_filter_cases = 24;
+
+  // The name of the key_value_table that contains the mapping of domain names to roaming
+  // partner names
+  string rp_name_table = 16;
+
+  // List of Roaming Partners
+  repeated RoamingPartner roaming_partners = 5;
+
+  // Key-Value tables used to map variable values (string -> string)
+  repeated KvTable key_value_tables = 6;
+
+  // Key-List-Value tables used to map a string to a list of values (string -> list of strings)
+  repeated KlvTable key_list_value_tables = 8;
+
+  // Name of the key_list_value_table that contains the apiName -> callback-uri
+  // mappings for e.g. a SEPP. Currently used for Telescopic-FQDN handling.
+  string callback_uri_klv_table = 9;
+
+  // List of NF-Types in our own PLMN that require Telescopic-FQDN handling.
+  repeated string nf_types_requiring_t_fqdn = 10;
+
+  // Own FQDN needed for T-FQDN feature to detect if a T-FQDN is for us (= ends with
+  // the own_fqdn), and also to insert our own FQDN into the authority header (together
+  // with own_internal_port or own_external_port) so that the vhost domain matches
+  // when the request leaves our filter and goes through the Envoy routing logic the
+  // second time.
+  string own_fqdn = 11;
+
+  // Own port, which is either connected to an internal network or to an external network.
+  // This field is also used to detect in the eric-proxy filter if requests are coming
+  // from an internal network.
+  // This is because they are on different listeners, and each listener has its own filter-chain.
+  oneof own_port {
+    // Own internal port, needed alongside own_fqdn to correctly set the :authority header. See
+    // also own_fqdn.
+    uint32 own_internal_port = 14;
+
+    // Own external port, needed alongside own_fqdn to correctly set the :authority header.
+    uint32 own_external_port = 15;
+  }
+
+  // plmn IDs serviced by this SEPP, distinguishing between primary and additional
+  PlmnIdInfo plmn_ids = 34;
+
+  // Indicates this filter configuration is tied to a listener servicing requests originating from the
+  // sepp manager (control plane). If not present, defaults to false
+  bool control_plane = 25;
+
+  // NF Peer Info handling
+  NfPeerInfo nf_peer_info_handling = 30;
+
+  // Decides which IP versions (IPv4 or IPv6 or both) to take into
+  // account, determined from the environment variable "IP_VERSION"
+  IPFamily ip_version = 31;
+
+  // Firewall global check configurations for SCP and SEPP with request coming
+  // from both own network and from roaming-partner in external network.
+  // Only used for configurable body checks, corresponds to "message-body-limits" in YANG.
+  MessageValidation request_validation = 32;
+
+  // Firewall global check configurations for SCP and SEPP with response coming
+  // from both own network and from roaming-partner in external network.
+  // Only used for configurable body checks, corresponds to "message-body-limits" in YANG.
+  MessageValidation response_validation = 33;
+
+  // Firewall global default allowed service operation check configuration list
+  // for SEPP with request coming from roaming-partner in external network.
+  // Only used for Unified Signaling Firewall (USFW) Unauthorized Service Operations
+  // Checks (USOC), corresponds to "validate-service-operations" in YANG.
+  repeated MessageSelector default_allowed_service_operations = 35;
+}
+
+// -----------------------------------------------------------------------
+
+// Request screening- and routing configuration
+message RequestFilterConfig {
+  NetworkFilterPhaseConfig in_request_screening = 1;
+
+  NetworkFilterPhaseConfig routing = 2;
+
+  ClusterFilterPhaseConfig out_request_screening = 3;
+}
+
+// Response screening- and routing configuration
+message ResponseFilterConfig {
+  ClusterFilterPhaseConfig in_response_screening = 1;
+
+  NetworkFilterPhaseConfig out_response_screening = 2;
+}
+
+// Per filter-phase configuration for own- and external network
+message NetworkFilterPhaseConfig {
+  oneof network {
+    ExtNetworkPhaseConfig ext_nw = 1;
+
+    OwnNetworkPhaseConfig own_nw = 2;
+  }
+}
+
+// NOTE: Has a limitation that Cluster FilterPhaseConfig does
+// not accomodate a configuration for the network to which
+// cluster belongs to (TODO): When we have multi-vpn make that
+// association and not in Via header compliance handling as some
+// SCP model adaptations are also required
+// Per filter-phase configuration for clusters
+message ClusterFilterPhaseConfig {
+  // Note: protobuf doesn’t allow “repeated map”, hence the ClusterFC message
+  repeated ClusterFcConfig cluster_fc_config_list = 1;
+}
+
+// Filter-phase configuration for an external network
+message ExtNetworkPhaseConfig {
+  // Name of the external network (for logging & debugging)
+  string name = 1;
+
+  // Start-filter-cases for requests coming in from external-network
+  // and roaming-partners. If this is routing, there must be
+  // exactly only one element. For screening: 0..N elements are allowed.
+  repeated ExtNetworkFcConfig ext_nw_fc_config_list = 2;
+}
+
+// Filter-phase configuration for an own network
+message OwnNetworkPhaseConfig {
+  // Name of the own network (for logging & debugging)
+  string name = 1;
+
+  // The start-filter-cases for requests arriving from the own-network
+  // If this is routing, there must be exactly only one element.
+  // For screening: 0..N elements are allowed.
+  repeated string start_fc_list = 2;
+}
+
+// Filter-phase configuration for clusters
+message ClusterFcConfig {
+  // A mapping of cluster-name to start-screening/-routing-case names
+  map<string, string> cluster_to_fc_map = 1;
+}
+
+// Start-screening/-routing-cases for
+// requests coming in from external
+// networks
+message ExtNetworkFcConfig {
+  oneof ext_nw_fc_choice {
+    // Per-roaming-partner screening or routing
+    PerRpFcConfig per_rp_fc_config = 1;
+
+    // Screening/routing regardless of roaming-partner
+    string start_fc_for_all_rp = 2;
+  }
+}
+
+// Per-roaming-partner screening/routing start-filter-cases
+message PerRpFcConfig {
+  // Mapping of RP-name to start-screening/routing-case names
+  map<string, string> rp_to_fc_map = 1;
+
+  // Default start-filtercase when the roaming-partner name is not
+  // found in the rp_to_fc map
+  string default_fc_for_rp_not_found = 2;
+}
+
+// -----------------------------------------------------------------------
+
+// Filter-case configuration
+message FilterCase {
+  // Name of the filter-case
+  string name = 1;
+
+  // List of filter-data
+  repeated FilterData filter_data = 2;
+
+  // List of filter-rules
+  repeated FilterRule filter_rules = 3;
+}
+
+// Filter-data configuration
+// [#next-free-field: 12]
+message FilterData {
+  // Possible filter-data namespace enumerations
+  enum FilterDataNameSpace {
+    MSG_SCREENING = 0;
+    TOPO_HIDE = 1;
+  }
+
+  // A name for this filter-data so that it can be referenced from filter-cases
+  // and printed in log messages
+  string name = 1;
+
+  // Source of the filter-data, gives the location
+  // from where the data should be extracted from
+  oneof source {
+    // Use the :path of the request as source
+    bool path = 2;
+
+    // If this is a request, use the request header with the given name. However,
+    // if this is a response, then use the response header. If a request header
+    // is required in a response filter-data, then use request_header instead.
+    string header = 3;
+
+    // Use the request header as source
+    string request_header = 7;
+
+    // Use the response header as source. This is only allowed/possible if this
+    // filter-data is referenced from a response-screening-case. If you try
+    // it anyway, it will be empty as if the header doesn't exist.
+    string response_header = 8;
+
+    // Read from the body through the given json-pointer. If this is in the request
+    // path, then the request body is read. If however this is in a response
+    // screening case, the response body is read.
+    string body_json_pointer = 4;
+
+    // Read from the request body through the given json-pointer.
+    string request_body_json_pointer = 9;
+
+    // Read from the response body via the configured json-pointer. If this is
+    // used in the request path, the result is always empty because the
+    // response body doesn't exist (yet).
+    string response_body_json_pointer = 10;
+  }
+
+  // Destination of the filter-data, gives the location
+  // to where the extrated data should be transferred
+  oneof destination_variable {
+    string variable_name = 5;
+
+    string extractor_regex = 6;
+  }
+
+  // Namespace for filter-data determining if it is
+  // a Message Screening or a Topology Hiding
+  FilterDataNameSpace name_space = 11;
+}
+
+// Filter-rule configuration
+message FilterRule {
+  // Name of the filter-rule
+  string name = 1;
+
+  // Condition to be checked for further action
+  Condition condition = 2;
+
+  // List of actions to be performed
+  repeated Action actions = 3;
+}
+
+// Action to be performed for a filter-rule
+// [#next-free-field: 21]
+message Action {
+  oneof action {
+    RouteToPoolAction action_route_to_pool = 1;
+
+    RouteToRoamingPartnerAction action_route_to_roaming_partner = 2;
+
+    string action_goto_filter_case = 3 [(validate.rules).string = {min_len: 1}];
+
+    AddHeaderAction action_add_header = 4;
+
+    RemoveHeaderAction action_remove_header = 5;
+
+    ModifyHeaderAction action_modify_header = 6;
+
+    RejectMessageAction action_reject_message = 7;
+
+    bool action_exit_filter_case = 8;
+
+    bool action_drop_message = 9;
+
+    LogAction action_log = 10;
+
+    SlfLookupAction action_slf_lookup = 11;
+
+    ModifyStatusCodeAction action_modify_status_code = 12;
+
+    ModifyVariableAction action_modify_variable = 13;
+
+    ModifyJsonBodyAction action_modify_json_body = 15;
+
+    CreateBodyAction action_create_body = 16;
+
+    NfDiscoveryAction action_nf_discovery = 17;
+
+    ModifyQueryParamAction action_modify_query_param = 18;
+
+    RemoveQueryParamAction action_remove_query_param = 19;
+
+    ReportEventAction action_report_event = 20;
+  }
+}
+
+message RemoveQueryParamAction {
+  string key_name = 1;
+}
+
+message ModifyQueryParamAction {
+  string key_name = 1;
+
+  oneof modification_type {
+    VarHeaderConstValue replace_value = 2;
+
+    StringModifierList use_string_modifiers = 3;
+
+    JsonOperation json_operation = 4;
+  }
+}
+
+// Dynamic key-value-table lookup
+// [#next-free-field: 7]
+message DynamicKvtLookup {
+  string lookup_table_name = 1;
+
+  oneof on_key_not_found {
+    string fc_unsuccessful_operation = 2;
+
+    string default_value = 3;
+
+    bool do_nothing = 4 [(validate.rules).bool = {const: true}];
+  }
+
+  VarHeaderConstValue key = 5;
+
+  Transformation transform = 6;
+}
+
+// Predicate Expression parsing tree. See the Blueprint document
+// for more information about the operators and data types.
+// [#next-free-field: 25]
+message Condition {
+  oneof expr {
+    option (validate.required) = true;
+
+    // Phase 1:
+    Op2AnyArgs op_equals = 1;
+
+    Op1ValueArg op_exists = 2;
+
+    Op1ValueArg op_isempty = 3;
+
+    Op2ConditionArgs op_and = 4;
+
+    Op2ConditionArgs op_or = 5;
+
+    Op1ConditionArg op_not = 6;
+
+    // To allow "predicate-expression: term_boolean: true"
+    bool term_boolean = 7;
+
+    // The first argument is a (var|header|string) with an IP address (v4 or v6),
+    // the second is a string CIDR range, for example "164.48.0.0/16" or
+    // "fa:16:3e:d3:48:87" in the case of IPv6. The command auto-detects if
+    // address and subnetmask are IPv4 or IPv6.
+    OpValueStringArgs op_isinsubnet = 22;
+
+    // Operator for checking whether the body is a valid JSON or not.
+    // The source argument is provided to tell that if the
+    // source body is a request body or a response body.
+    Op1SourceArg op_isvalidjson = 23;
+
+    // Phase 2:
+    Op2ValueArgs op_matches = 8;
+
+    Op2ValueArgs op_contains = 9;
+
+    Op2ValueArgs op_startswith = 11;
+
+    Op2ValueArgs op_endswith = 12;
+
+    Op2ValueArgs op_less = 13;
+
+    Op2ValueArgs op_greater = 14;
+
+    Op2ValueArgs op_lessequal = 15;
+
+    Op2ValueArgs op_greaterequal = 16;
+
+    // Phase 3:
+    // ??WHICH TYPE?? op_reqisabsurl = ;  // FIXME (eedala): which type to use for this?
+    Op1Value1ArrayArg op_inset = 17;
+
+    // Phase 4:
+    Op2ValueArgs op_intable = 18;
+
+    Op2ValueArgs op_startswithin = 19;
+
+    Op2ValueArgs op_endswithin = 20;
+
+    Op2ValueArgs op_containsin = 21;
+
+    Op2AnyArgs op_equals_case_insensitive = 24;
+  }
+}
+
+// An operator expecting one Condition argument (for example op_not, ..)
+message Op1ConditionArg {
+  Condition arg1 = 1;
+}
+
+// An operator expecting two Condition arguments (for example op_and, op_or, ..)
+message Op2ConditionArgs {
+  Condition arg1 = 1;
+
+  Condition arg2 = 2;
+}
+
+// An operator expecting one value argument (for example op_isempty)
+message Op1ValueArg {
+  Value arg1 = 1;
+}
+
+// An operator expecting a string-value and a string-value argument
+message OpValueStringArgs {
+  Value arg1 = 1;
+
+  string arg2 = 2 [(validate.rules).string = {min_len: 2}];
+}
+
+// An operator expecting one source argument.
+// A source is either a request body or a response body.
+message Op1SourceArg {
+  oneof source {
+    bool request_body = 1 [(validate.rules).bool = {const: true}];
+
+    bool response_body = 2 [(validate.rules).bool = {const: true}];
+  }
+}
+
+// An operator expecting two value arguments (for example op_matches, op_startswith, ..)
+message Op2ValueArgs {
+  Value arg1 = 1;
+
+  Value arg2 = 2;
+}
+
+// An operator expecting three value arguments (for example op_trigram)
+message Op3ValueArgs {
+  Value arg1 = 1;
+
+  Value arg2 = 2;
+
+  Value arg3 = 3;
+}
+
+// An operator expecting a value and an array of values (for example op_inset)
+message Op1Value1ArrayArg {
+  Value arg1 = 1;
+
+  repeated Value arg2 = 2;
+}
+
+// An operator expecting two "any" arguments. This is for op_equals which can have
+// attributes of type "Value" or of type "Condition".
+message Op2AnyArgs {
+  google.protobuf.Any typed_config1 = 1;
+
+  google.protobuf.Any typed_config2 = 2;
+}
+
+// A value is either a terminal (for example term_var, term_reqheader, term_string)
+// or an operator returning a value (for example op_default or op_trigram)
+// [#next-free-field: 13]
+message Value {
+  // API related parameters as extracted frin tge 3gpp-sbi-callback or :path headers.
+  // For now only api name is exposed
+  enum ApiContext { API_NAME = 0; }
+
+  oneof val {
+    option (validate.required) = true;
+
+    // Phase 1 and 2: (implemented)
+    //  term_reqmethod is sent as term_header[":method"]
+    //  term_reqpath is sent as term_header[":path"]
+    string term_reqheader = 1 [(validate.rules).string = {min_len: 1}];
+
+    string term_var = 2 [(validate.rules).string = {min_len: 1}];
+
+    string term_string = 3 [(validate.rules).string = {min_len: 1}];
+
+    bool term_boolean = 4;
+
+    double term_number = 5;
+
+    string term_respheader = 6 [(validate.rules).string = {min_len: 1}];
+
+    string term_queryparam = 11 [(validate.rules).string = {min_len: 1}];
+
+    ApiContext term_apicontext = 12;
+
+    // Phase 3:
+    Op2ValueArgs op_default = 7;
+
+    Op3ValueArgs op_trigram = 8;
+
+    // Phase 4:
+    TerminalNameKey term_kvt = 9;
+
+    TerminalNameIndex term_dt = 10;
+  }
+}
+
+// Phase 4:
+// A terminal with a "name" and a "key" attribute for key-value-tables
+message TerminalNameKey {
+  string name = 1 [(validate.rules).string = {min_len: 1}];
+
+  string key = 2 [(validate.rules).string = {min_len: 1}];
+}
+
+// Phase 4:
+// A terminal with a "name" and a numerical "index" attribute for data-tables
+message TerminalNameIndex {
+  string name = 1 [(validate.rules).string = {min_len: 1}];
+
+  int32 index = 2;
+}
+
+// RoamingPartner -> at least Pool info is needed to define the
+// set the cluster for action_route_to_roaming_partner
+// we might move this elsewhere if we decide to place more decisions
+// in the manager
+// [#next-free-field: 8]
+message RoamingPartner {
+  string name = 1 [(validate.rules).string = {min_len: 1}];
+
+  string pool_name = 2;
+
+  // Settings for topology-hiding
+  TopologyHiding topology_hiding = 3;
+
+  // Firewall per roaming partner check configurations for SEPP and
+  // request originating from roaming-partner in external network.
+  // The checks defined here will overwrite corresponding global checks for
+  // SEPP and request originating from roaming-partner in external network.
+  // Only used for USFW (Unified Signaling Firewall) LLC (Low Layer-Format Checks) and
+  // Unauthorized Service Operations Checks (USOC), corresponds to "firewall-profile" in YANG.
+  MessageValidation request_validation = 4;
+
+  // Firewall per roaming partner check configurations for SEPP and
+  // response originating from roaming-partner in external network.
+  // The checks defined here will overwrite corresponding global checks for
+  // SEPP and response originating from roaming-partner in external network.
+  // Only used for USFW (Unified Signaling Firewall) LLC (Low Layer-Format Checks),
+  // corresponds to "firewall-profile" in YANG.
+  MessageValidation response_validation = 5;
+
+  // allowed plmn_ids for this RP, distinguishing between primary and additional
+  PlmnIdInfo plmn_ids = 6;
+
+  // Own Network FQDN's for SEPP Roaming partner
+  string own_network_fqdn = 7;
+}
+
+// Encaptulates plmn-id information, similar to how it is configured in YANG model
+message PlmnIdInfo {
+  // Pair of plmn-id values, mcc, mnc
+  message PlmnIdPair {
+    string mcc = 1;
+
+    string mnc = 2;
+  }
+
+  PlmnIdPair primary_plmn_id = 1;
+
+  repeated PlmnIdPair additional_plmn_ids = 2;
+
+}
+
+// Topology-hiding settings for one roaming-partner
+// [#next-free-field: 7]
+message TopologyHiding {
+  // IP Hiding
+  message IpHiding {
+    message ActionOnFqdnAbsence {
+      message Action {
+        oneof action {
+          bool apply_ip_hiding = 1 [(validate.rules).bool = {const: true}];
+
+          bool drop = 2 [(validate.rules).bool = {const: true}];
+
+          bool forward = 3 [(validate.rules).bool = {const: true}];
+
+          RejectMessageAction respond_with_error = 4;
+        }
+      }
+
+      Action request_action = 1;
+
+      Action response_action = 2;
+    }
+
+    message SubnetList {
+      repeated string subnet_list = 1;
+    }
+
+    map<string, ActionOnFqdnAbsence> ip_hiding_per_target_nf_type = 1;
+
+    map<string, SubnetList> ipv4_subnet_per_target_nf_type = 2;
+
+    map<string, SubnetList> ipv6_subnet_per_target_nf_type = 3;
+  }
+
+  // Encryption profile
+  message EncryptionProfile {
+    string encryption_identifier = 1;
+
+    string scrambling_key = 2;
+
+    string initial_vector = 3;
+  }
+
+  // A list of mappings from nf-type to the pseudo-profile we will send
+  // when we see a NF-Discovery request for an NF-type.
+  // If this list is empty, no topology-hiding is done for this roaming-partner.
+  repeated PseudoProfilePerNfType pseudo_profiles = 1;
+
+  // All the pseudo-fqdn that we use for topology-hiding for this roaming-partner.
+  // They are used to detect if a request needs un-hiding. The pseudo-fqdn
+  // is part of the pseudo-profile and is typically received in the header
+  // 3gpp-Sbi-target-apiRoot
+  repeated string pseudo_fqdn = 2;
+
+  // TH Phase 2, IP Hiding (SC 1.11)
+  IpHiding ip_hiding = 3;
+
+  // TH Phase 2, NRF FQDN Mapping (SC1.12) &
+  // FQDN Srambling (SC1.13)
+  TopologyHidingServiceProfile service_profile = 4;
+
+  // A list of encryption profiles
+  repeated EncryptionProfile encryption_profiles = 5;
+
+  // Active encryption to be used from encryption profiles
+  string active_encryption_identifier = 6;
+}
+
+// A mapping of an NF-type to the pseudo-NF-profile that the SEPP shall send.
+message PseudoProfilePerNfType {
+  // The NF-type for which the profile shall be sent
+  // Constraint: The nf_type must be all-uppercase as per TS 29.510, table 6.1.6.3.3-1:
+  // Enumeration NFType
+  string nf_type = 1;
+
+  // The pseudo-profile to send. This is a string containing the whole body (JSON-formatted)
+  // that will be sent as-is.
+  string pseudo_profile = 2 [(validate.rules).string = {min_len: 2}];
+}
+
+message TopologyHidingServiceProfile {
+  // Semantically a set of parameters
+  // to uniquely identify a Sbi message
+  // [#next-free-field: 7]
+  message ServiceContext {
+    enum Direction {
+      REQUEST = 0;
+      RESPONSE = 1;
+    }
+
+    enum MessageOrigin {
+      EXT = 0;
+      INT = 1;
+    }
+
+    string api_name = 1;
+
+    string api_version = 2;
+
+    bool is_notification = 3;
+
+    string resource_matcher = 4;
+
+    string http_method = 5;
+
+    Direction direction = 6;
+  }
+
+  // Semantically equivalent to FilterCase of
+  // Message Screening
+  message ServiceCase {
+    string service_case_name = 1;
+
+    ServiceContext service_type = 2;
+
+    FilterCase filter_case = 3;
+  }
+
+  repeated ServiceCase topology_hiding_service_cases = 1;
+
+  repeated ServiceCase topology_unhiding_service_cases = 2;
+
+  repeated FilterCase unsuccessful_operation_filter_cases = 3;
+}
+
+message ScramblingProfile {
+  oneof on_unsuccessful_operation {
+    string fc_unsuccessful_operation = 1;
+
+    // Replaces full FQDN not only label
+    string default_value = 2;
+
+    bool do_nothing = 3 [(validate.rules).bool = {const: true}];
+  }
+
+  Transformation transform = 4;
+}
+
+// Different checks for validating a message
+// [#next-free-field: 7]
+message MessageValidation {
+  CheckHeaders check_headers = 1;
+
+  CheckJsonSyntax check_json_syntax = 2;
+
+  CheckMessageBytes check_message_bytes = 3;
+
+  CheckJsonLeaves check_json_leaves = 4;
+
+  CheckJsonDepth check_json_depth = 5;
+  
+  CheckServiceOperations check_service_operations = 6;
+}
+
+// List of all headers that are allowed/denied.
+// If not configured, all headers are allowed.
+// It contains a map between the header name and a dummy
+// bool flag. The dummy bool flag is necessary because
+// proto3 doesn't support sets.
+// Only used for USFW LLC.
+message CheckHeaders {
+  oneof policy {
+    // Checking list for allowed headers
+    StringBoolMap allowed_headers = 1;
+
+    // Checking list for denied headers
+    StringBoolMap denied_headers = 2;
+  }
+
+  // Configure whether an event should be reported when the check fails
+  bool report_event = 3;
+
+  // Perform this action when the check fails
+  ActionOnFailure action_on_failure = 4;
+}
+
+// Protobuf does not allow a "map<string, bool>" inside a "oneof",
+// hence this type
+message StringBoolMap {
+  map<string, bool> values = 1;
+}
+
+// Check for JSON body syntax.
+// Only used for USFW LLC.
+message CheckJsonSyntax {
+  // Configure whether an event should be reported when the check fails
+  bool report_event = 1;
+
+  // Perform this action when the check fails
+  ActionOnFailure action_on_failure = 2;
+}
+
+// Check for max message body size.
+// Only used for configurable body checks and USFW LLC.
+message CheckMessageBytes {
+  // Maximum body size in request and response direction.
+  // If not configured, the default is 16000000 bytes.
+  // Messages exceeding this size will be rejected with a 413 error in the
+  // request direction or changed to a 500 error in the response direction.
+  // We are using "google.protobuf.UInt32Value" instead of "uint32" to have
+  // a check function for value presence, i.e, "has_max_message_bytes()".
+  google.protobuf.UInt32Value max_message_bytes = 1;
+
+  // Configure whether an event should be reported when the check fails
+  bool report_event = 2;
+
+  // Perform this action when the check fails
+  ActionOnFailure action_on_failure = 3;
+}
+
+// Check for max number of JSON body leaves.
+// Only used for configurable body checks and USFW LLC.
+message CheckJsonLeaves {
+  // Maximum number of JSON body leaves in request and response direction.
+  // If not configured, no check would be performed.
+  // We are using "google.protobuf.UInt32Value" instead of "uint32" to have
+  // a check function for value presence, i.e, "has_max_message_leaves()".
+  google.protobuf.UInt32Value max_message_leaves = 1;
+
+  // Configure whether an event should be reported when the check fails
+  bool report_event = 2;
+
+  // Perform this action when the check fails
+  ActionOnFailure action_on_failure = 3;
+}
+
+// Check for max number of JSON body nesting depth.
+// Only used for configurable body checks and USFW LLC.
+message CheckJsonDepth {
+  // Maximum number of JSON body nesting depth in request and response direction.
+  // If not configured, no check would be performed.
+  // We are using "google.protobuf.UInt32Value" instead of "uint32"
+  // to have a check function for value presence, i.e, "has_max_message_nesting_depth()".
+  google.protobuf.UInt32Value max_message_nesting_depth = 1;
+
+  // Configure whether an event should be reported when the check fails
+  bool report_event = 2;
+
+  // Perform this action when the check fails
+  ActionOnFailure action_on_failure = 3;
+}
+
+// Check for unauthorized service operations.
+// Only used for USFW USOC.
+message CheckServiceOperations {
+  // Custom allowed service operation check configuration list for SEPP
+  // with request coming from roaming-partner in external network,
+  // corresponds to "add-operations" in YANG
+  repeated MessageSelector custom_allowed_service_operations = 1;
+
+  // Custom denied service operation check configuration list for SEPP
+  // with request coming from roaming-partner in external network,
+  // corresponds to "remove-default-operations" in YANG
+  repeated MessageSelector custom_denied_service_operations = 2;
+
+  // Configure whether an event should be reported when the check fails
+  bool report_event = 3;
+
+  // Perform this action when the check fails
+  ActionOnFailure action_on_failure = 4;
+}
+
+// Message Attributes used for USFW (Unified Signaling Firewall)
+// Unauthorized Service Operations Checks (USOC)
+// [#next-free-field: 6]
+message MessageSelector {
+  // allowed URI as REGEX?
+  // URI is in the format of '{apiRoot}/<apiName>/<apiVersion>/<apiSpecificResourceUriPart>/<custOpName>'
+  enum MessageType {
+    ANY = 0;
+    SERVICE_REQUEST = 1;
+    CALLBACK = 2;
+  }
+  repeated string api_names = 1;
+  repeated string api_versions = 2;
+  bool is_notification = 3;
+  repeated string resource_matchers = 4;
+  repeated string http_methods = 5;
+}
+
+message ActionOnFailure {
+  oneof action_specifier {
+    option (validate.required) = true;
+
+    RejectMessageAction respond_with_error = 1;
+
+    // Only valid for request messages
+    bool drop_message = 2 [(validate.rules).bool = {const: true}];
+
+    // Only valid for CheckHeaders, CheckJsonSyntax & CheckServiceOperations
+    bool forward_unmodified_message = 3 [(validate.rules).bool = {const: true}];
+
+    // Only valid for CheckHeaders
+    bool remove_denied_headers = 4 [(validate.rules).bool = {const: true}];
+  }
+}
+
+message AddHeaderAction {
+  string name = 1 [(validate.rules).string = {min_len: 1}];
+
+  VarHeaderConstValue value = 2;
+
+  IfExists if_exists = 3;
+}
+
+// [#next-free-field: 6]
+message ModifyHeaderAction {
+  // The name of the header to be modified.
+  string name = 1 [(validate.rules).string = {min_len: 1}];
+
+  // Replace the current value with replace_value. If there are multiple
+  // instances of the same header, all of them are removed and replaced
+  // by a single header with the value replace_value.
+  // If the header is empty, the modify action is still executed.
+  // replace_value has precedence over append_value/prepend_value.
+  // If replace_value is not empty, then append_value and prepend_value
+  // are ignored.
+  VarHeaderConstValue replace_value = 2;
+
+  // Append a string to all instances of the header. If replace_value is
+  // not empty, then append_value is ignored.
+  VarHeaderConstValue append_value = 3;
+
+  // Prepend a string to all instances of the header. If replace_value is
+  // not empty, then prepend_value is ignored.
+  VarHeaderConstValue prepend_value = 4;
+
+  // String modifiers for header value
+  StringModifierList use_string_modifiers = 5;
+}
+
+// Modify a body:
+// modify a JSON body according to the provided json operations
+//
+message ModifyJsonBodyAction {
+  // optional name of the action
+  string name = 1;
+
+  JsonOperation json_operation = 2;
+}
+
+// Modify a JSON operation by ModifyJsonBodyAction and potentially ModifyVariable
+// [#next-free-field: 6]
+message JsonOperation {
+  oneof json_operation {
+    AddToJson add_to_json = 1;
+
+    ReplaceInJson replace_in_json = 2;
+
+    ModifyJsonValue modify_json_value = 3;
+
+    RemoveFromJson remove_from_json = 4;
+
+    string json_patch = 5;
+  }
+}
+
+// Add a value to a JSON document
+message AddToJson {
+  enum IfJsonPathNotExists {
+    CREATE = 0;
+    DO_NOTHING = 1;
+  }
+
+  enum IfJsonElementExists {
+    NO_ACTION = 0;
+    REPLACE = 1;
+  }
+
+  VarOrString value = 1;
+
+  VarOrString json_pointer = 2;
+
+  IfJsonPathNotExists if_path_not_exists = 3;
+
+  IfJsonElementExists if_element_exists = 4;
+}
+
+// Replace a value in a JSON document
+message ReplaceInJson {
+  VarOrString value = 1;
+
+  VarOrString json_pointer = 2;
+}
+
+// Remove a value from a JSON document
+message RemoveFromJson {
+  VarOrString json_pointer = 1;
+}
+
+// Modify a value in a JSON document
+message ModifyJsonValue {
+  VarOrString json_pointer = 1;
+
+  repeated StringModifier string_modifiers = 2;
+
+  bool enable_exception_handling = 3;
+}
+
+// Protobuf does not allow a "repeated StringModifier" inside a "oneof".
+// Hence "StringModifierList" type can be used.
+message StringModifierList {
+  repeated StringModifier string_modifiers = 1;
+}
+
+// modfifier functions supported for strings
+// [#next-free-field: 8]
+message StringModifier {
+  oneof string_modifier {
+    bool to_upper = 1;
+
+    bool to_lower = 2;
+
+    VarHeaderConstValue append = 3;
+
+    VarHeaderConstValue prepend = 4;
+
+    DynamicKvtLookup table_lookup = 5;
+
+    ScramblingProfile scrambling_profile = 6;
+
+    SearchAndReplace search_and_replace = 7;
+  }
+}
+
+message SearchAndReplace {
+  message SearchOptions {
+    bool regex_search = 1;
+
+    bool case_sensitive = 2;
+
+    bool full_match = 3;
+
+    bool search_from_end = 4;
+  }
+
+  message ReplaceOptions {
+    bool replace_all_occurances = 1;
+  }
+
+  VarHeaderConstValue search_value = 1;
+
+  SearchOptions search_options = 2;
+
+  VarHeaderConstValue replace_value = 3;
+
+  ReplaceOptions replace_options = 4;
+}
+
+// Create a body according to the provided content
+message CreateBodyAction {
+  string name = 1;
+
+  string content = 2;
+
+  string content_type = 3;
+}
+
+// Modify a variable value
+// [#next-free-field: 6]
+message ModifyVariableAction {
+  // The name of the output/destination variable. The source
+  // can be the same or a different variable.
+  string name = 1 [(validate.rules).string = {min_len: 1}];
+
+  // TODO(eedala): VarHeaderConstValue replace_value = 2;
+
+  // TODO(eedala): VarHeaderConstValue append_value = 3;
+
+  // TODO(eedala): VarHeaderConstValue prepend_value = 4;
+
+  // The new value is found by looking up a table with the given key.
+  KvtLookup table_lookup = 5;
+}
+
+// Parameters for a key-value table lookup
+message KvtLookup {
+  // The name of the table
+  string table_name = 1 [(validate.rules).string = {min_len: 1}];
+
+  // The key, which is either a variable value, header value, or
+  // string constant,
+  VarHeaderConstValue key = 2;
+}
+
+// From where to read a string.
+message VarHeaderConstValue {
+  oneof val {
+    // Read the value from a given variable
+    string term_var = 1 [(validate.rules).string = {min_len: 1}];
+
+    // Read the value from a given header
+    string term_header = 2 [(validate.rules).string = {min_len: 1}];
+
+    // Use a string constant as value
+    string term_string = 3 [(validate.rules).string = {min_len: 0}];
+  }
+}
+
+message RemoveHeaderAction {
+  string name = 1 [(validate.rules).string = {min_len: 1}];
+}
+
+// [#next-free-field: 6]
+message RejectMessageAction {
+  int32 status = 1;
+
+  string title = 2 [(validate.rules).string = {max_len: 200}];
+
+  string detail = 4 [(validate.rules).string = {max_len: 200}];
+
+  string cause = 5 [(validate.rules).string = {max_len: 200}];
+
+  MessageBodyType message_format = 3;
+}
+
+// [#next-free-field: 6]
+message ModifyStatusCodeAction {
+  int32 status = 1;
+
+  string title = 2 [(validate.rules).string = {max_len: 200}];
+
+  string detail = 4 [(validate.rules).string = {max_len: 200}];
+
+  string cause = 5 [(validate.rules).string = {max_len: 200}];
+
+  MessageBodyType message_format = 3;
+}
+
+message LogAction {
+  // Debug, Info, etc. (the same levels as in Envoy code)
+  LoggingLevel log_level = 2;
+
+  // What to log: This can be a fixed string or values from variables or
+  // request/response data.  Everything will be concatenated.
+  repeated LogValue log_values = 3;
+
+  // If the concatenated log values exceed this size, then the message
+  // will be truncated and "..." appended to indicated the truncation.
+  uint32 max_log_message_length = 4;
+}
+
+// [#next-free-field: 8]
+message LogValue {
+  oneof val {
+    option (validate.required) = true;
+
+    // Phase 1 and 2: (implemented)
+    //  term_reqmethod is sent as term_header[":method"]
+    //  term_reqpath is sent as term_header[":path"]
+    string term_reqheader = 1 [(validate.rules).string = {min_len: 1}];
+
+    string term_var = 2 [(validate.rules).string = {min_len: 1}];
+
+    string term_string = 3 [(validate.rules).string = {min_len: 1}];
+
+    bool term_boolean = 4;
+
+    double term_number = 5;
+
+    string term_respheader = 6 [(validate.rules).string = {min_len: 1}];
+
+    string term_body = 7 [(validate.rules).string = {in: "request" in: "response"}];
+  }
+}
+
+// [#next-free-field: 6]
+message ReportEventAction {
+  enum EventType {
+    HTTP_SYNTAX_ERROR = 0;
+    HTTP_HEADER_TOO_MANY = 1;
+    HTTP_HEADER_TOO_LONG = 2;
+    HTTP_HEADER_NOT_ALLOWED = 3;
+    HTTP_BODY_TOO_LONG = 4;
+    HTTP_BODY_EXTRA_BODIES = 5;
+    HTTP_JSON_BODY_SYNTAX_ERR = 6;
+    HTTP_JSON_BODY_TOO_MANY_LEAVES = 7;
+    HTTP_JSON_BODY_MAX_DEPTH_EXCEEDED = 8;
+    UNAUTHORIZED_SERVICE_OPERATION_DETECTED = 9;
+    BARRED_HTTP1 = 10;
+    USER_DEFINED_EVENT = 11;
+  }
+
+  enum EventCategory { SECURITY = 0; }
+
+  enum EventSeverity {
+    INFO = 0;
+    DEBUG = 1;
+    WARNING = 2;
+    ERROR = 3;
+    CRITICAL = 4;
+  }
+
+  enum EventAction {
+    REJECTED = 0;
+    DROPPED = 1;
+    IGNORED = 2;
+    REPAIRED = 3;
+  }
+
+  EventType event_type = 1;
+
+  EventCategory event_category = 2;
+
+  EventSeverity event_severity = 3;
+
+  repeated LogValue event_message_values = 4;
+
+  EventAction event_action = 5;
+}
+
+message EndpointSelectionPolicy {
+  // Enum to indicate a preferred IP family in selection of preferred host endpoint
+  // for strict,preferred,remote preferred or remote round robin routing
+  IPFamily preferred_ip_family = 1;
+
+  // lag to indicate if the retries should be distributed to all preferred host endpoints
+  // in case of a multihomed NF Service Instance or (NF Instance) IP Endpoint
+  bool preferred_host_retry_multiple_address = 2;
+}
+
+// [#next-free-field: 10]
+message RouteToPoolAction {
+  // Name of the pool to route to. This is the name of an Envoy cluster.
+  VarOrString pool_name = 1;
+
+  // Desired routing behaviour (round-robin/strict/preferred/strict for Dyn Forwarding Proxy)
+  RoutingBehaviour routing_behaviour = 2;
+
+  // Direct/indirect routing options
+  PreserveIfIndirect preserve_if_indirect = 3;
+
+  // Indirect routing discovery parameters to preserve
+  PreserveDiscParamIfIndirect preserve_disc_params_if_indirect = 6;
+
+  // Number of retries for remote routing
+  // Only applicable if routing behaviour is REMOTE_PREFERRED
+  google.protobuf.UInt32Value remote_retries = 7;
+
+  // Number of reselections for remote routing
+  // Only applicable if routing behaviour is REMOTE_PREFERRED or REMOTE_ROUND_ROBIN
+  google.protobuf.UInt32Value remote_reselections = 8;
+
+  // If there is a preferred target, from where to read it.
+  // From where to read the preferred target. In the case of genric strict
+  // routing (= one host from a pool, no failover, no last resort), the
+  // target host is also the preferred host, only that the pool and route
+  // have no failover configured. (The opposite of "generic strict routing"
+  // is RoutingBehaviour = STRICT where we route to a dynamic
+  // forwarding pool.)
+  VarHeaderConstValue preferred_target = 4;
+
+  // Flag to keep the :authority header's contents and not rewrite them to
+  // the selected host we are forwarding to. Default is "false" which rewrites
+  // the :authority header to the selected host.
+  bool keep_authority_header = 5;
+
+  // Endpoint IP Family and retry policy selection at the EricProxy Filter Level
+  // for strict and preferred routing
+  EndpointSelectionPolicy endpoint_policy = 9;
+}
+
+// [#next-free-field: 7]
+message RouteToRoamingPartnerAction {
+  // Name of the roaming partner, to find the corresponding pool, but also
+  // for logging and statistics
+  string roaming_partner_name = 1;
+
+  // Desired routing behaviour (round-robin or dynamic-forwarding)
+  RoutingBehaviour routing_behaviour = 2;
+
+  // Direct/indirect routing options
+  PreserveIfIndirect preserve_if_indirect = 3;
+
+  // If there is a preferred target, from where to read it.
+  // From where to read the preferred target. In the case of genric strict
+  // routing (= one host from a pool, no failover, no last resort), the
+  // target host is also the preferred host, only that the pool and route
+  // have no failover configured. (The opposite of "generic strict routing"
+  // is RoutingBehaviour = STRICT where we route to a dynamic
+  // forwarding pool.)
+  VarHeaderConstValue preferred_target = 4;
+
+  // Flag to keep the :authority header's contents and not rewrite them to
+  // the selected host we are forwarding to. Default is "false" which rewrites
+  // the :authority header to the selected host.
+  bool keep_authority_header = 5;
+
+  // Endpoint IP Family and retry policy selection at the EricProxy Filter Level
+  // for strict and preferred routing
+  EndpointSelectionPolicy endpoint_policy = 6;
+}
+
+// A key-value table that can be used to map one variable value to another
+// and to look up if a key is present in the table.
+message KvTable {
+  string name = 1;
+
+  repeated KeyValuePair entries = 2;
+}
+
+// One entry in a key-value table. Keys and values are strings.
+message KeyValuePair {
+  string key = 1;
+
+  string value = 2;
+}
+
+// A key-list-value table that can be used to map a string to a list of strings
+// and to look up if a key is present in the table.
+message KlvTable {
+  string name = 1;
+
+  repeated KeyListValuePair entries = 2;
+}
+
+// One entry in a key--list-value table. Keys are strings, and values are
+// lists of strings.
+message KeyListValuePair {
+  string key = 1;
+
+  repeated string value = 2;
+}
+
+// One entry in a key-value table. Keys are strings and values are
+// either strings or variable names.
+message KeyVarOrStringValuePair {
+  // The key, always a string
+  string key = 1;
+
+  // The value can be either a string constant or the name of a variable:
+  VarOrString value = 2;
+}
+
+// A value that is either a string constant or a variable value
+message VarOrString {
+  oneof val {
+    // The value is a variable value
+    string term_var = 1 [(validate.rules).string = {min_len: 1}];
+
+    // The value is a strin constant
+    string term_string = 2;
+  }
+}
+
+// [#next-free-field: 14]
+message SlfLookupAction {
+  oneof source_variable {
+    string supi_var = 1;
+
+    string suci_var = 2;
+
+    string gpsi_var = 3;
+  }
+
+  // The region will be stored in the destination variable
+  string destination_variable = 4 [(validate.rules).string = {min_len: 1}];
+
+  // Name of the cluster to the reach the SLF
+  string cluster_name = 5 [(validate.rules).string = {min_len: 1}];
+
+  // Query  timeout in ms
+  int64 timeout = 6 [(validate.rules).int64 = {gt: 0}];
+
+  // Next fc if the SUPI could not be found in the incoming request
+  string fc_id_missing = 7 [(validate.rules).string = {min_len: 1}];
+
+  // Next fc triggered the SUPI/GPSI… was not found in SLF/NRF
+  string fc_id_not_found = 8 [(validate.rules).string = {min_len: 1}];
+
+  // Next fc triggered if the destination (= SLF search result) doesn't exist
+  string fc_dest_unknown = 9 [(validate.rules).string = {min_len: 1}];
+
+  // Next fc triggered if the lookup itself failed
+  string fc_lookup_failure = 10 [(validate.rules).string = {min_len: 1}];
+
+  // Requester NF-Type for SLF query (Defaults to req-nf-type=SCP)
+  string req_nf_type = 11;
+
+  // Target NF-Type for SLF query (Defaults target-nf-type=CHF)
+  string target_nf_type = 12;
+
+  // Reference to the NRF group to be used by SLF for the NF discovery. 
+  // If unspecified, the NRF group referenced by nrf-service/nf-discovery/nrf-group-ref applies
+  string nrf_group_name = 13;
+}
+
+// For option D: the names of two variables where the selected/preferred
+// host and its nf-set-id will be stored.
+message OptDSelectNfOnPriority {
+  // The name of the variable that will hold the hostname:port of the
+  // selected/preferred NF:
+  string var_name_preferred_host = 1;
+
+  // The name of the variable that will hold the nf-set-id of the
+  // selected/preferred NF:
+  string var_name_nf_set = 2;
+}
+
+// Action-Nf-Discovery
+// Send discovery parameters that were received with a request to the NLF
+// and receive a list of NF-profiles matching the discovery query.
+// If nf-selection-on-priority is configured, extract a preferred host
+// and store it in the configured variable and also store the nf-set-id
+// in the corresponding variable.
+// [#next-free-field: 9]
+message NfDiscoveryAction {
+  // Name of the cluster to the reach the NLF
+  string cluster_name = 1 [(validate.rules).string = {min_len: 1}];
+
+  // NRF/NLF query timeout in ms
+  int64 timeout = 2 [(validate.rules).int64 = {gt: 0}];
+
+  // Name of the NRF-Group that shall handle this discovery
+  string nrf_group_name = 3;
+
+  // Which discovery parameters that came with the request shall be used?
+  // This is optional, it is allowed to not use any parameter from the request
+  // and only use "added" parameters.
+  oneof use_discovery_parameters {
+    // Flag to indicate if all received 3gpp-Sbi-Discovery-* parameters
+    // shall be used
+    bool use_all_parameters = 4;
+
+    // Use the listed parameters only. If the parameter is not included in the
+    // request, then don't use it (obviously).  If the parameter is both
+    // in this list and in the add_parameters_if_missing list, then the value
+    // from the request is used.
+    StringList use_parameters = 5;
+  }
+
+  // Discovery parameters to add to the request to the NLF.
+  // If the parameter does not exist in the incoming request, it will
+  // be added if configured here
+  //
+  // If the parameter already exists in the request and use_parameters
+  // contains the parameter, the value is not added.
+  //
+  // If the value exists in the request, is **not** in the use_parameters
+  // list but in the add_parameters_if_missing list,
+  //
+  // then the parameter is added with the value configured here.
+  repeated KeyVarOrStringValuePair add_parameters_if_missing = 6;
+
+  // Extract all NFs with the highest priority from the received list of
+  // NF-profiles.  From these, randomly select one NF and store its hostname
+  // in the configured variable.  Take the nf-set-id from the selected NF and
+  // store it in the other configured variable.
+  OptDSelectNfOnPriority nf_selection_on_priority = 7;
+
+  // Decides which IP versions (IPv4 or IPv6 or both) to take into
+  // account while creating endpoints when FQDN is not present
+  IPFamily ip_version = 8;
+}

@@ -1,0 +1,969 @@
+---
+mappers:
+- filter:
+    metadata_filter:
+      matcher:
+        filter: eric_filter
+        path:
+        - key: local_replied
+        value:
+          string_match:
+            exact: 'true'
+      match_if_key_not_found: false
+- filter:
+    status_code_filter:
+      comparison:
+        value:
+          default_value: 418
+          runtime_key: 'null'
+  status_code: 400
+  body_format_override:
+    json_format:
+      title: Bad Request
+      status: 400
+      cause: UNSPECIFIED_MSG_FAILURE
+      detail: Route not found (No VHost match)
+    content_type: application/problem+json
+- filter:
+    response_flag_filter:
+      flags:
+      - NC
+  status_code: 500
+  body_format_override:
+    json_format:
+      title: Internal Server Error
+      status: 500
+      cause: SYSTEM_FAILURE
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 400
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - E_IVH
+  status_code: 400
+  body_format_override:
+    json_format:
+      title: Bad Request
+      status: 400
+      cause: MANDATORY_IE_INCORRECT
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    status_code_filter:
+      comparison:
+        value:
+          default_value: 400
+          runtime_key: 'null'
+  status_code: 400
+  body_format_override:
+    json_format:
+      title: Bad Request
+      status: 400
+      cause: MANDATORY_IE_MISSING
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    status_code_filter:
+      comparison:
+        value:
+          default_value: 403
+          runtime_key: 'null'
+  status_code: 400
+  body_format_override:
+    json_format:
+      title: Bad Request
+      status: 400
+      cause: UNSPECIFIED_MSG_FAILURE
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 404
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - E_APR
+          - NR
+  status_code: 400
+  body_format_override:
+    json_format:
+      title: Bad Request
+      status: 400
+      cause: UNSPECIFIED_MSG_FAILURE
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 404
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - E_MPR
+  status_code: 400
+  body_format_override:
+    json_format:
+      title: Bad Request
+      status: 400
+      cause: MANDATORY_IE_MISSING
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    status_code_filter:
+      comparison:
+        value:
+          default_value: 404
+          runtime_key: 'null'
+  status_code: 400
+  body_format_override:
+    json_format:
+      title: Bad Request
+      status: 400
+      cause: UNSPECIFIED_MSG_FAILURE
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 408
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UT
+          - UMSDR
+          - DT
+          - SI
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: STRICT_DFP
+          match_if_key_not_found: false
+  status_code: 500
+  body_format_override:
+    json_format:
+      title: Internal Server Error
+      status: 500
+      cause: NF_FAILOVER
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 408
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UT
+          - UMSDR
+          - DT
+          - SI
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: STRICT
+          match_if_key_not_found: false
+  status_code: 500
+  body_format_override:
+    json_format:
+      title: Internal Server Error
+      status: 500
+      cause: NF_FAILOVER
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 408
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UT
+          - UMSDR
+          - DT
+          - SI
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: PREFERRED
+          match_if_key_not_found: false
+  status_code: 504
+  body_format_override:
+    json_format:
+      title: Gateway Timeout
+      status: 504
+      cause: TARGET_NF_NOT_REACHABLE
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 408
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UT
+          - UMSDR
+          - DT
+          - SI
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: ROUND_ROBIN
+          match_if_key_not_found: false
+  status_code: 504
+  body_format_override:
+    json_format:
+      title: Gateway Timeout
+      status: 504
+      cause: TARGET_NF_NOT_REACHABLE
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 413
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - E_PTL
+  status_code: 413
+  body_format_override:
+    json_format:
+      title: Payload Too Large
+      status: 413
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    status_code_filter:
+      comparison:
+        value:
+          default_value: 426
+          runtime_key: 'null'
+  status_code: 400
+  body_format_override:
+    json_format:
+      title: Bad Request
+      status: 400
+      cause: UNSPECIFIED_MSG_FAILURE
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 429
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - RL
+  status_code: 429
+  body_format_override:
+    json_format:
+      title: Too Many Requests
+      status: 429
+      cause: NF_CONGESTION_RISK
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 500
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - E_PTL
+  status_code: 500
+  body_format_override:
+    json_format:
+      title: Internal Server Error
+      status: 500
+      cause: INSUFFICIENT_RESOURCES
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 500
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - RLSE
+  status_code: 500
+  body_format_override:
+    json_format:
+      title: Internal Server Error
+      status: 500
+      cause: SYSTEM_FAILURE
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 502
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UPE
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: STRICT
+          match_if_key_not_found: false
+  status_code: 500
+  body_format_override:
+    json_format:
+      title: Internal Server Error
+      status: 500
+      cause: NF_FAILOVER
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 502
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UPE
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: STRICT_DFP
+          match_if_key_not_found: false
+  status_code: 500
+  body_format_override:
+    json_format:
+      title: Internal Server Error
+      status: 500
+      cause: NF_FAILOVER
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 502
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UPE
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: ROUND_ROBIN
+          match_if_key_not_found: false
+  status_code: 504
+  body_format_override:
+    json_format:
+      title: Gateway Timeout
+      status: 504
+      cause: TARGET_NF_NOT_REACHABLE
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 502
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UPE
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: PREFERRED
+          match_if_key_not_found: false
+  status_code: 504
+  body_format_override:
+    json_format:
+      title: Gateway Timeout
+      status: 504
+      cause: TARGET_NF_NOT_REACHABLE
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    status_code_filter:
+      comparison:
+        value:
+          default_value: 502
+          runtime_key: 'null'
+  status_code: 500
+  body_format_override:
+    json_format:
+      title: Internal Server Error
+      status: 500
+      cause: SYSTEM_FAILURE
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 503
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UH
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: STRICT
+          match_if_key_not_found: false
+  status_code: 500
+  body_format_override:
+    json_format:
+      title: Internal Server Error
+      status: 500
+      cause: NF_FAILOVER
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 503
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UH
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: STRICT_DFP
+          match_if_key_not_found: false
+  status_code: 500
+  body_format_override:
+    json_format:
+      title: Internal Server Error
+      status: 500
+      cause: NF_FAILOVER
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 503
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UH
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: ROUND_ROBIN
+          match_if_key_not_found: false
+  status_code: 504
+  body_format_override:
+    json_format:
+      title: Gateway Timeout
+      status: 504
+      cause: TARGET_NF_NOT_REACHABLE
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 503
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UH
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: PREFERRED
+          match_if_key_not_found: false
+  status_code: 504
+  body_format_override:
+    json_format:
+      title: Gateway Timeout
+      status: 504
+      cause: TARGET_NF_NOT_REACHABLE
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 503
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UF
+          - UC
+          - LR
+          - UO
+          - UR
+          - OM
+          - URX
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: STRICT
+          match_if_key_not_found: false
+  status_code: 500
+  body_format_override:
+    json_format:
+      title: Internal Server Error
+      status: 500
+      cause: NF_FAILOVER
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 503
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UF
+          - UC
+          - LR
+          - UO
+          - UR
+          - OM
+          - URX
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: STRICT_DFP
+          match_if_key_not_found: false
+  status_code: 500
+  body_format_override:
+    json_format:
+      title: Internal Server Error
+      status: 500
+      cause: NF_FAILOVER
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 503
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UF
+          - UC
+          - LR
+          - UO
+          - UR
+          - OM
+          - URX
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: ROUND_ROBIN
+          match_if_key_not_found: false
+  status_code: 504
+  body_format_override:
+    json_format:
+      title: Gateway Timeout
+      status: 504
+      cause: TARGET_NF_NOT_REACHABLE
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 503
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UF
+          - UC
+          - LR
+          - UO
+          - UR
+          - OM
+          - URX
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: PREFERRED
+          match_if_key_not_found: false
+  status_code: 504
+  body_format_override:
+    json_format:
+      title: Gateway Timeout
+      status: 504
+      cause: TARGET_NF_NOT_REACHABLE
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 503
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UF
+          - UC
+          - LR
+          - UO
+          - UR
+          - OM
+          - URX
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: STRICT
+          match_if_key_not_found: false
+  status_code: 500
+  body_format_override:
+    json_format:
+      title: Internal Server Error
+      status: 500
+      cause: NF_FAILOVER
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 503
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UF
+          - UC
+          - LR
+          - UO
+          - UR
+          - OM
+          - URX
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: STRICT_DFP
+          match_if_key_not_found: false
+  status_code: 500
+  body_format_override:
+    json_format:
+      title: Internal Server Error
+      status: 500
+      cause: NF_FAILOVER
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 503
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - DPE
+  status_code: 500
+  body_format_override:
+    json_format:
+      title: Internal Server Error
+      status: 500
+      cause: SYSTEM_FAILURE
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 503
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - RLSE
+  status_code: 429
+  body_format_override:
+    json_format:
+      title: Too Many Requests
+      status: 429
+      cause: NF_CONGESTION_RISK
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 503
+              runtime_key: 'null'
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: STRICT_DFP
+          match_if_key_not_found: false
+  status_code: 500
+  body_format_override:
+    json_format:
+      title: Internal Server Error
+      status: 500
+      cause: SYSTEM_FAILURE
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 504
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UT
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: STRICT
+          match_if_key_not_found: false
+  status_code: 500
+  body_format_override:
+    json_format:
+      title: Internal Server Error
+      status: 500
+      cause: NF_FAILOVER
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 504
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UT
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: STRICT_DFP
+          match_if_key_not_found: false
+  status_code: 500
+  body_format_override:
+    json_format:
+      title: Internal Server Error
+      status: 500
+      cause: NF_FAILOVER
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 504
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UT
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: ROUND_ROBIN
+          match_if_key_not_found: false
+  status_code: 504
+  body_format_override:
+    json_format:
+      title: Gateway Timeout
+      status: 504
+      cause: TARGET_NF_NOT_REACHABLE
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+- filter:
+    and_filter:
+      filters:
+      - status_code_filter:
+          comparison:
+            value:
+              default_value: 504
+              runtime_key: 'null'
+      - response_flag_filter:
+          flags:
+          - UT
+      - metadata_filter:
+          matcher:
+            filter: eric_proxy
+            path:
+            - key: routing-behaviour
+            value:
+              string_match:
+                contains: PREFERRED
+          match_if_key_not_found: false
+  status_code: 504
+  body_format_override:
+    json_format:
+      title: Gateway Timeout
+      status: 504
+      cause: TARGET_NF_NOT_REACHABLE
+      detail: "%RESPONSE_CODE_DETAILS%"
+    content_type: application/problem+json
+

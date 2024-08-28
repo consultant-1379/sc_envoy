@@ -1,0 +1,171 @@
+syntax = "proto3";
+
+package envoy.extensions.filters.http.eric_ingress_ratelimit.v3;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/wrappers.proto";
+
+import "udpa/annotations/status.proto";
+import "udpa/annotations/versioning.proto";
+import "validate/validate.proto";
+
+option java_package = "io.envoyproxy.envoy.extensions.filters.http.eric_ingress_ratelimit.v3";
+option java_outer_classname = "EricIngressRatelimitProto";
+option java_multiple_files = true;
+option go_package = "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/eric_ingress_ratelimit/v3;eric_ingress_ratelimitv3";
+option (udpa.annotations.file_status).package_version_status = ACTIVE;
+
+// One entry in a key-value table. Key is a string, value is oneof:
+// * String (used for mapping domain names to RP names)
+// * ActionProfile (used for mapping RP names to ActionProfiles to be executed when a request is overlimit)
+// * List of strings mapping the 32 available priorities that a request can have to a watemark on the service's token bucket
+
+// Indicates if this filter is used in a SEPP or SCP. Default is SCP.
+enum Namespace {
+  SCP = 0;
+  SEPP = 1;
+}
+
+enum MessageBodyType {
+  // JSON-encoded
+  JSON = 0;
+
+  // Plain text
+  PLAIN_TEXT = 1;
+}
+
+enum RetryAfterHeaderFormat {
+  DISABLED = 0;
+  SECONDS = 1;
+  HTTP_DATE = 2;
+}
+
+// [#next-free-field: 7]
+message IngressRateLimit {
+  // The rate limit domain to use when calling the rate limit service.
+  // Allowed values: SCP,SEPP
+  Namespace namespace = 1;
+  // [(validate.rules).enum = {defined_only: true}];
+
+  // The timeout in milliseconds for the rate limit service RPC. If not
+  // set, this defaults to 20ms.
+  google.protobuf.Duration timeout = 2;
+
+  // Configuration for an external rate limit service provider.
+  RateLimitServiceConfig rate_limit_service = 3 [(validate.rules).message = {required: true}];
+
+  // A list of actions that are to be applied for this ingress rate limit configuration.
+  // Currently available actions include Network and RoamingPartner rate limits. Only one limit
+  // can be configured for now
+  repeated RateLimit limits = 4 [(validate.rules).repeated = {min_items: 1 max_items: 1}];
+
+  // A list of floats associating token bucket watermarks with each of the 32 message priorities defined by 3GPP
+  repeated float watermarks = 6 [(validate.rules).repeated = {
+    min_items: 32
+    max_items: 32
+    items {float {gte: 0.0}}
+  }];
+}
+
+message RateLimitServiceConfig {
+  // The action the filter will make if the rate limiting service cannot be reached or responds with an error code other than 200
+  // or the response body is malformed
+  ActionProfile service_error_action = 1 [(validate.rules).message = {required: true}];
+
+  // The cluster name of the rate limiting service
+  string service_cluster_name = 2 [(validate.rules).string = {min_len: 1}];
+}
+
+message RateLimit {
+  // Rate limit depending on ingress roaming partner. A token request will be sent to the service
+  // containing the bucketname to be queried.
+  message RoamingPartner {
+    // The action the filter will make if the roaming partner name CANNOT be retrieved from
+    // the ssl connection object
+    ActionProfile rp_not_found_action = 1 [(validate.rules).message = {required: true}];
+
+    // The name of the KeyValueTable to decide if a roaming partner has a rate limit configuration
+    // as well as the associated action
+
+    // The name of the KeyListValueTable to decide the mapping of priorities to bucket percentages for a roaming partner
+
+    // A mapping of domain names (as retrieved from the tls certificate) to roaming
+    // partner names (as configured in YANG) and their associated BucketActionPair configuration.
+    // The BucketActionPair is only present on the entries associated with roaming partners that have limits configured
+    //
+    // Entry example:
+    // domainName -> {rpName, bucketName, ActionProfile}  string -> string(mandatory),BucketActionPair(optional)
+    // 'ericsson.se' -> {'rp_A', {'type=ingress,on=rp,name=rp_A', action_drop_message}}
+    map<string, MapEntry> rp_bucket_action_table = 2 [(validate.rules).map = {min_pairs: 1}];
+  }
+
+  // Rate limit depending on ingress network. A token request will be sent to the service
+  // containing the bucketname to be queried.
+  message Network {
+    BucketActionPair bucket_action = 1 [(validate.rules).message = {required: true}];
+  }
+
+  oneof limit_specifier {
+    option (validate.required) = true;
+
+    // Rate limit on ingress roaming partner
+    RoamingPartner roaming_partner = 1;
+
+    // Rate limit on ingress network (own or external (SEPP only))
+    Network network = 2;
+  }
+}
+
+// Defines the action the filter should execute in different scenarios.
+// Available actions: DROP,PASS,REJECT.
+// [#next-free-field: 8]
+message ActionProfile {
+  // [#next-free-field: 7]
+  message ActionRejectMessage {
+    int32 status = 1;
+
+    string title = 2 [(validate.rules).string = {max_len: 200}];
+
+    MessageBodyType message_format = 3;
+
+    string detail = 4 [(validate.rules).string = {max_len: 200}];
+
+    string cause = 5 [(validate.rules).string = {max_len: 200}];
+
+    // Indicates the format of the 'retry-after' header appended by the filter on the response
+    // of a rate limited request, in case the associated action is message reject.
+    // Supported options are:
+    // DISABLED : no 'retry-after' header is appended on the response
+    // SECONDS  : the 'retry-after' header is in seconds and is appended on the response
+    // HTTP_DATE: the 'retry-after' header is appended on the response and follows the HTTP DATE
+    //            format, e.g. Wed, 21 Oct 2015 07:28:00 GMT
+    RetryAfterHeaderFormat retry_after_header = 6;
+  }
+
+  oneof action_specifier {
+    option (validate.required) = true;
+
+    ActionRejectMessage action_reject_message = 5;
+
+    bool action_drop_message = 6;
+
+    bool action_pass_message = 7;
+  }
+}
+
+// A grouping of a token bucket name used to query the service, as well as
+// an Action Profile, indicating the action to be taken if the request is deemed overlimit
+message BucketActionPair {
+  string bucket_name = 1 [(validate.rules).string = {min_len: 1}];
+
+  ActionProfile over_limit_action = 2;
+  // make required?
+}
+
+message MapEntry {
+  string rp_name = 1;
+  // required?
+
+  BucketActionPair bucket_action_pair = 2;
+}

@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package envoy.extensions.transport_sockets.tls.v3;
+
+import "envoy/config/core/v3/base.proto";
+import "envoy/extensions/transport_sockets/tls/v3/common.proto";
+
+import "udpa/annotations/status.proto";
+import "validate/validate.proto";
+
+option java_package = "io.envoyproxy.envoy.extensions.transport_sockets.tls.v3";
+option java_outer_classname = "SeppValidatorConfigProto";
+option java_multiple_files = true;
+option go_package = "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3;tlsv3";
+option (udpa.annotations.file_status).package_version_status = ACTIVE;
+
+// [#protodoc-title: SEPP Certificate Validator]
+// [#extension: envoy.tls.cert_validator.sepp]
+
+// Configuration specific to the SEPP Certificate Validator
+// TODO: Add more information here
+message SEPPCertValidatorConfig {
+  message TrustStores {
+    string name = 1 [(validate.rules).string = {min_len: 1}];
+
+    // TLS certificate data containing certificate authority certificates to use in verifying
+    // a presented peer certificate (e.g. server certificate for clusters or client certificate
+    // for listeners).
+    config.core.v3.DataSource trusted_ca = 2;
+
+    //   Subject Alternative Names are easily spoofable and verifying only them is insecure,
+    //   therefore this option must be used together with trusted_ca
+    repeated SubjectAltNameMatcher matchers = 3 [(validate.rules).repeated = {min_items: 1}];
+  }
+
+  // This field specifies trust stores used for validating incoming X.509-SVID(s).
+  repeated TrustStores trust_stores = 1 [(validate.rules).repeated = {min_items: 1}];
+}

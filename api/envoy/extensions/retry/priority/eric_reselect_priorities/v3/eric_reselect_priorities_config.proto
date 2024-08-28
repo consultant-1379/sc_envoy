@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package envoy.extensions.retry.priority.eric_reselect_priorities.v3;
+
+import "udpa/annotations/status.proto";
+import "udpa/annotations/versioning.proto";
+import "validate/validate.proto";
+
+option java_package = "io.envoyproxy.envoy.extensions.retry.priority.eric_reselect_priorities.v3";
+option java_outer_classname = "EricReselectPrioritiesConfigProto";
+option java_multiple_files = true;
+option go_package = "github.com/envoyproxy/go-control-plane/envoy/extensions/retry/priority/eric_reselect_priorities/v3;eric_reselect_prioritiesv3";
+option (udpa.annotations.file_status).package_version_status = ACTIVE;
+
+// [#protodoc-title: Previous priorities retry selector]
+
+// A retry host selector that attempts to spread retries between priorities, even if certain
+// priorities would not normally be attempted due to higher priorities being available.
+//
+// This priority retry predicate applies Ericsson SC's failover logic where every host of the cluster
+// is tried once, respecting priority levels and the configured maximum number of reselects.
+// To achieve that it is combined with the `previous_hosts` host retry predicate, in order not to try the same
+// host twice.
+// Also, for preferred and strict routing scenarios the preferred host is retried `preferred_host_retries`
+// times, excluding the first try (which is not a retry)
+// The only priority retry predicate that is provided by envoy attempts to distribute the load amongst
+// the remaining healthy priorities based on their relative health.
+//
+// As priorities get excluded, load will be distributed amongst the remaining healthy priorities
+// based on the relative health of the priorities, matching how load is distributed during regular
+// host selection. The interaction of this predicate with active health checking (i.e. having degraded priorities)
+// is not tested as no active health checking is currently used in SC.
+// However, it is adapted to take into account passive health checking, only taking into account hosts that have not
+// been marked by outlier detection.
+//
+// Furthermore, the concept of the last resort pool uses aggregate clusters, where the first cluster member contains
+// hosts of the target pool and the second cluster member hosts of the configured last-resort-pool.
+//
+// Each priority attempted will be excluded until there are no priorities left or `failover_reselects`
+// (and `last_resort_reselects` if the target is an aggregate cluster) is exhausted (whichever comes first), at which
+// point the retry process will stop and the failed reply will be forwarded.
+// For example, given three  healthy priorities P0, P1, P2, containing hosts {h00,h01}, {h10}, {h20,h21} respectively,
+// with `failover_reselects` equals to 3 and the routing scenario being Round Robin, the retry sequence would be
+// following sequence of priorities would be selected (assuming update_frequency = 1):
+// Attempt 1: P0, h00/h01
+// Attempt 2: P0, h01/h00 (whichever was not tried in the first try)
+// Attempt 3: P1, h10
+// Attempt 4: P2, h20,h21
+// No more reselects as 3 `failover_reselects` where performed
+//
+// In the case of all upstream hosts being unhealthy, no adjustments will be made to the original
+// priority load, so behavior should be identical to not using this plugin.
+//
+// Using this PriorityFilter requires rebuilding the priority load, which runs in O(# of
+// priorities), which might incur significant overhead for clusters with many priorities.
+// [#extension: envoy.retry_priorities.eric_reselect_priorities]
+// [#next-free-field: 6]
+message EricReselectPrioritiesConfig {
+  option (udpa.annotations.versioning).previous_message_type =
+      "envoy.config.retry.eric_reselect_priorities.EricReselectPrioritiesConfig";
+
+  // How often the priority load should be updated based on previously attempted priorities. Useful
+  // to allow each priorities to receive more than one request before being excluded or to reduce
+  // the number of times that the priority load has to be recomputed.
+  //
+  // For example, by setting this to 2, then the first two attempts (initial attempt and first
+  // retry) will use the unmodified priority load. The third and fourth attempt will use priority
+  // load which excludes the priorities routed to with the first two attempts, and the fifth and
+  // sixth attempt will use the priority load excluding the priorities used for the first four
+  // attempts.
+  //
+
+  // the number of retries to the preferred host. Only set this for preferred/strict routing scenarios.
+  // Does not include the first try. Should be zero for round robin routing scenarios
+  uint32 preferred_host_retries = 1 [(validate.rules).uint32 = {gte: 0}];
+
+  // The maximum number of reselects among hosts of the target cluster. These concern only hosts of the
+  // 'primary' pool (first cluster member of the aggregate cluster) and not hosts belonging to the last resort pool
+  // Should be zero for strict routing scenarios
+  uint32 failover_reselects = 2 [(validate.rules).uint32 = {gte: 0}];
+
+  // The maximum number of reselects among hosts of the target cluster's last resort pool. These concern only hosts of the
+  // 'last resort' pool (first cluster member of the aggregate cluster)
+  uint32 last_resort_reselects = 3 [(validate.rules).uint32 = {gte: 0}];
+
+  // boolean indicating if the predicate should check for hosts blocked by temporary blocking (outlier detection) when calculating
+  // the priority load. Defaults to false
+  bool support_temporary_blocking = 4;
+
+  // boolean indicating if the predicate should exlcude hosts whose hostnames are present on the request's via header, when calculating
+  // the priority load. This config parameter makes sense for clusters containing SCPs (proxies) and enabling it should be paired with
+  // the <TODO: PLACEHOLDER FOR NAME> host retry predicate.
+  // Defaults to false
+  bool support_loop_prevention = 5;
+}

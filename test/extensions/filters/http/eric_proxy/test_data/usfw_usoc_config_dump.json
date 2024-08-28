@@ -1,0 +1,541 @@
+{
+    "default_allowed_service_operations": [
+        {
+            "api_names": [
+                "nsmf-pdusession"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "resource_matchers": [
+                "/sm-contexts"
+            ],
+            "http_methods": [
+                "POST"
+            ]
+        },
+        {
+            "api_names": [
+                "Nsmf_PDUSession_smContextStatusNotification"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "is_notification": true,
+            "http_methods": [
+                "POST"
+            ]
+        },
+        {
+            "api_names": [
+                "nsmf-pdusession"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "resource_matchers": [
+                "/sm-contexts/.+/(retrieve|modify|release)"
+            ],
+            "http_methods": [
+                "POST"
+            ]
+        },
+        {
+            "api_names": [
+                "nsmf-pdusession"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "resource_matchers": [
+                "/pdu-sessions"
+            ],
+            "http_methods": [
+                "POST"
+            ]
+        },
+        {
+            "api_names": [
+                "Nsmf_PDUSession_StatusNotify",
+                "Nsmf_PDUSession_Update",
+                "Nsmf_PDUSession_statusNotification-ismf",
+                "Nsmf_PDUSession_update-ismf",
+                "Nsmf_PDUSession_transferMtData",
+                "Nsmf_PDUSession_transferMtData-ismf"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "is_notification": true,
+            "http_methods": [
+                "POST"
+            ]
+        },
+        {
+            "api_names": [
+                "nsmf-pdusession"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "resource_matchers": [
+                "/pdu-sessions/.+/(modify|release)"
+            ],
+            "http_methods": [
+                "POST"
+            ]
+        },
+        {
+            "api_names": [
+                "nsmf-pdusession"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "resource_matchers": [
+                "/pdu-sessions/.+/(retrieve|transfer-mo-data)"
+            ],
+            "http_methods": [
+                "POST"
+            ]
+        },
+        {
+            "api_names": [
+                "nudm-ee"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "resource_matchers": [
+                "/(msisdn-[0-9]{5,15}|extid-[^@]+@[^@]+|extgroupid-[^@]+@[^@]+|anyUE)/ee-subscriptions"
+            ],
+            "http_methods": [
+                "POST"
+            ]
+        },
+        {
+            "api_names": [
+                "Nudm_EE_eventOccurrenceNotification"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "is_notification": true,
+            "http_methods": [
+                "POST"
+            ]
+        },
+        {
+            "api_names": [
+                "nudm-ee"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "resource_matchers": [
+                "/(msisdn-[0-9]{5,15}|extid-[^@]+@[^@]+|extgroupid-[^@]+@[^@]+|anyUE)/ee-subscriptions/[^/]+"
+            ],
+            "http_methods": [
+                "DELETE",
+                "PATCH"
+            ]
+        },
+        {
+            "api_names": [
+                "nudm-sdm"
+            ],
+            "api_versions": [
+                "v2"
+            ],
+            "resource_matchers": [
+                "/(imsi-[0-9]{5,15}|nai-.+|gci-.+|gli-.+)/am-data/cag-ack"
+            ],
+            "http_methods": [
+                "PUT"
+            ]
+        },
+        {
+            "api_names": [
+                "nudm-sdm"
+            ],
+            "api_versions": [
+                "v2"
+            ],
+            "resource_matchers": [
+                "/(imsi-[0-9]{5,15}|nai-.+|gci-.+|gli-.+)"
+            ],
+            "http_methods": [
+                "GET"
+            ]
+        },
+        {
+            "api_names": [
+                "nudm-sdm"
+            ],
+            "api_versions": [
+                "v2"
+            ],
+            "resource_matchers": [
+                "/(imsi-[0-9]{5,15}|nai-.+|gci-.+|gli-.+)/(nssai|am-data|smf-select-data|ue-context-in-smf-data|ue-context-in-smsf-data|trace-data|sm-data|sms-data|sms-mng-data|lcs-mo-data|lcs-bca-data|v2x-data)"
+            ],
+            "http_methods": [
+                "GET"
+            ]
+        },
+        {
+            "api_names": [
+                "nudm-sdm"
+            ],
+            "api_versions": [
+                "v2"
+            ],
+            "resource_matchers": [
+                "/(imsi-[0-9]{5,15}|nai-.+|gci-.+|gli-.+)/sdm-subscriptions"
+            ],
+            "http_methods": [
+                "POST"
+            ]
+        },
+        {
+            "api_names": [
+                "nudm-sdm"
+            ],
+            "api_versions": [
+                "v2"
+            ],
+            "resource_matchers": [
+                "/(imsi-[0-9]{5,15}|nai-.+|gci-.+|gli-.+)/sdm-subscriptions/[^/]+"
+            ],
+            "http_methods": [
+                "DELETE",
+                "PATCH"
+            ]
+        },
+        {
+            "api_names": [
+                "nudm-sdm"
+            ],
+            "api_versions": [
+                "v2"
+            ],
+            "resource_matchers": [
+                "/(imsi-[0-9]{5,15}|nai-.+|gci-.+|gli-.+)/am-data/(sor-ack|upu-ack|subscribed-snssais-ack)"
+            ],
+            "http_methods": [
+                "PUT"
+            ]
+        },
+        {
+            "api_names": [
+                "nudm-sdm"
+            ],
+            "api_versions": [
+                "v2"
+            ],
+            "resource_matchers": [
+                "/shared-data"
+            ],
+            "http_methods": [
+                "GET"
+            ]
+        },
+        {
+            "api_names": [
+                "nudm-sdm"
+            ],
+            "api_versions": [
+                "v2"
+            ],
+            "resource_matchers": [
+                "/shared-data-subscriptions"
+            ],
+            "http_methods": [
+                "POST"
+            ]
+        },
+        {
+            "api_names": [
+                "nudm-sdm"
+            ],
+            "api_versions": [
+                "v2"
+            ],
+            "resource_matchers": [
+                "/shared-data-subscriptions/[^/]+"
+            ],
+            "http_methods": [
+                "DELETE",
+                "PATCH"
+            ]
+        },
+        {
+            "api_names": [
+                "nudm-sdm"
+            ],
+            "api_versions": [
+                "v2"
+            ],
+            "resource_matchers": [
+                "/(imsi-[0-9]{5,15}|nai-.+|gci-.+|gli-.+)/am-data/update-sor"
+            ],
+            "http_methods": [
+                "POST"
+            ]
+        },
+        {
+            "api_names": [
+                "nudm-sdm"
+            ],
+            "api_versions": [
+                "v2"
+            ],
+            "resource_matchers": [
+                "/group-data/group-identifiers"
+            ],
+            "http_methods": [
+                "GET"
+            ]
+        },
+        {
+            "api_names": [
+                "nudm-uecm"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "resource_matchers": [
+                "/(imsi-[0-9]{5,15}|nai-.+|msisdn-[0-9]{5,15}|extid-[^@]+@[^@]+|gci-.+|gli-.+)/registrations/amf-3gpp-access",
+                "/(imsi-[0-9]{5,15}|nai-.+|msisdn-[0-9]{5,15}|extid-[^@]+@[^@]+|gci-.+|gli-.+)/registrations/amf-non-3gpp-access"
+            ],
+            "http_methods": [
+                "PUT",
+                "PATCH"
+            ]
+        },
+        {
+            "api_names": [
+                "Nudm_UECM_PCSCFRestorationNotification",
+                "Nudm_UECM_DeregistrationNotification"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "is_notification": true,
+            "http_methods": [
+                "POST"
+            ]
+        },
+        {
+            "api_names": [
+                "nudm-uecm"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "resource_matchers": [
+                "/(imsi-[0-9]{5,15}|nai-.+|msisdn-[0-9]{5,15}|extid-[^@]+@[^@]+|gci-.+|gli-.+)/registrations/smf-registrations/[0-9]+",
+                "/(imsi-[0-9]{5,15}|nai-.+|msisdn-[0-9]{5,15}|extid-[^@]+@[^@]+|gci-.+|gli-.+)/registrations/smsf-3gpp-access",
+                "/(imsi-[0-9]{5,15}|nai-.+|msisdn-[0-9]{5,15}|extid-[^@]+@[^@]+|gci-.+|gli-.+)/registrations/smsf-non-3gpp-access"
+            ],
+            "http_methods": [
+                "PUT",
+                "DELETE"
+            ]
+        },
+        {
+            "api_names": [
+                "nudm-uecm"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "resource_matchers": [
+                "/(imsi-[0-9]{5,15}|nai-.+|msisdn-[0-9]{5,15}|extid-[^@]+@[^@]+|gci-.+|gli-.+)/registrations"
+            ],
+            "http_methods": [
+                "GET"
+            ]
+        },
+        {
+            "api_names": [
+                "nausf-auth"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "resource_matchers": [
+                "/ue-authentications"
+            ],
+            "http_methods": [
+                "POST"
+            ]
+        },
+        {
+            "api_names": [
+                "nausf-auth"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "resource_matchers": [
+                "/ue-authentications/[^/]+/5g-aka-confirmation"
+            ],
+            "http_methods": [
+                "PUT",
+                "DELETE"
+            ]
+        },
+        {
+            "api_names": [
+                "nausf-auth"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "resource_matchers": [
+                "/ue-authentications/[^/]+/eap-session"
+            ],
+            "http_methods": [
+                "POST",
+                "DELETE"
+            ]
+        },
+        {
+            "api_names": [
+                "nausf-auth"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "resource_matchers": [
+                "/rg-authentications"
+            ],
+            "http_methods": [
+                "POST"
+            ]
+        },
+        {
+            "api_names": [
+                "oauth2"
+            ],
+            "resource_matchers": [
+                "/token"
+            ],
+            "http_methods": [
+                "POST"
+            ]
+        },
+        {
+            "api_names": [
+                "bootstrapping"
+            ],
+            "resource_matchers": [
+                "/"
+            ],
+            "http_methods": [
+                "GET"
+            ]
+        },
+        {
+            "api_names": [
+                "nnrf-disc"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "resource_matchers": [
+                "/searches/[^/]+(/complete)?",
+                "/nf-instances"
+            ],
+            "http_methods": [
+                "GET"
+            ]
+        },
+        {
+            "api_names": [
+                "Namf_EventExposure_Notify"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "is_notification": true,
+            "http_methods": [
+                "POST"
+            ]
+        },
+        {
+            "api_names": [
+                "namf-loc"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "resource_matchers": [
+                "/(5g-guti-[0-9]{5,6}[0-9a-fA-F]{14}|imsi-[0-9]{5,15}|nai-.+| gci-.+|gli-.+|imei-[0-9]{15}|imeisv-[0-9]{16})/provide-loc-info"
+            ],
+            "http_methods": [
+                "POST"
+            ]
+        },
+        {
+            "api_names": [
+                "namf-mt"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "resource_matchers": [
+                "/ue-contexts/(5g-guti-[0-9]{5,6}[0-9a-fA-F]{14}|imsi-[0-9]{5,15}|nai-.+| gci-.+|gli-.+|imei-[0-9]{15}|imeisv-[0-9]{16})"
+            ],
+            "http_methods": [
+                "GET"
+            ]
+        },
+        {
+            "api_names": [
+                "nnssf-nsselection"
+            ],
+            "api_versions": [
+                "v2"
+            ],
+            "resource_matchers": [
+                "/network-slice-information"
+            ],
+            "http_methods": [
+                "GET"
+            ]
+        },
+        {
+            "api_names": [
+                "n32f-forward"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "resource_matchers": [
+                "/n32f-process"
+            ],
+            "http_methods": [
+                "POST",
+                "OPTIONS"
+            ]
+        },
+        {
+            "api_names": [
+                "n32c-handshake"
+            ],
+            "api_versions": [
+                "v1"
+            ],
+            "resource_matchers": [
+                "/exchange-capability",
+                "/exchange-params",
+                "/n32f-terminate",
+                "/n32f-error"
+            ],
+            "http_methods": [
+                "POST"
+            ]
+        }
+    ]
+}

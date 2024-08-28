@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package envoy.extensions.retry.host.eric_loop_prevention.v3;
+
+import "udpa/annotations/status.proto";
+import "udpa/annotations/versioning.proto";
+
+option java_package = "io.envoyproxy.envoy.extensions.retry.host.eric_loop_prevention.v3";
+option java_outer_classname = "EricLoopPreventionConfigProto";
+option java_multiple_files = true;
+option go_package = "github.com/envoyproxy/go-control-plane/envoy/extensions/retry/host/eric_loop_prevention/v3;eric_loop_preventionv3";
+option (udpa.annotations.file_status).package_version_status = ACTIVE;
+
+// [#protodoc-title: Ericsson loop prevention retry predicate]
+
+// A retry host predicate that rejects a host, if it's fqdn:port or ip:port
+// is present in the request's via header
+// [#extension: envoy.retry_host_predicates.eric_loop_prevention]
+message EricLoopPreventionConfig {
+}

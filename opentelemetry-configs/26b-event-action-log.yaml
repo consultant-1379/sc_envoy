@@ -1,0 +1,292 @@
+admin:
+  access_log_path: /tmp/admin_access.log
+  address:
+    socket_address:
+      protocol: TCP
+      address: 127.0.0.1
+      port_value: 9902
+static_resources:
+  listeners:
+  - address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 8080
+    traffic_direction: INBOUND
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          flush_access_log_on_new_request: true
+          access_log:
+            filter:
+              metadata_filter:
+                match_if_key_not_found: false
+                matcher:
+                  filter: eric.proxy.test
+                  path:
+                    key: accesslog
+                  value:
+                    present_match: true
+            name: "envoy.access_loggers.stdout"
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+              log_format:
+                json_format:
+                  accesslog: "%DYNAMIC_METADATA(eric.proxy.test:accesslog)%"
+                  accesslog_type: "%ACCESS_LOG_TYPE%"
+                  user_agent: "%REQ(USER-AGENT)%"
+                  accesslog: "%DYNAMIC_METADATA(eric.proxy.test:accesslog)%"
+          generate_request_id: true
+          tracing:
+            verbose: true
+            provider:
+              name: envoy.tracers.opentelemetry
+              typed_config:
+                "@type": type.googleapis.com/envoy.config.trace.v3.OpenTelemetryConfig
+                grpc_service:
+                  envoy_grpc:
+                    cluster_name: opentelemetry_collector
+                  timeout: 0.250s
+                service_name: envoy-1
+          codec_type: AUTO
+          stat_prefix: ingress_http
+          http_filters:
+          - name: envoy.filters.http.header_to_metadata
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.header_to_metadata.v3.Config
+              request_rules:
+                - header: accesslog
+                  on_header_present:
+                    metadata_namespace: eric.proxy.test
+                    key: accesslog
+                    type: STRING
+
+          - name: envoy.filters.http.eric_proxy
+            typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.http.eric_proxy.v3.EricProxyConfig
+                own_internal_port: 80
+                request_filter_cases:
+                  routing:
+                    own_nw:
+                      name: own_network
+                      start_fc_list:
+                      - routing
+                filter_cases:
+                  - name: routing
+                    filter_data:
+                    - name: apiRoot_data
+                      header: 3gpp-sbi-target-apiroot
+                      extractor_regex: eric-chfsim-\d+-mnc-(?P<mnc>\d+)-mcc-(?P<mcc>\d+)
+                    filter_rules:
+                      condition:
+                        op_equals: { typed_config1: {'@type': 'type.googleapis.com/envoy.extensions.filters.http.eric_proxy.v3.Value',  term_var: mcc }, typed_config2: {'@type': 'type.googleapis.com/envoy.extensions.filters.http.eric_proxy.v3.Value',  term_string: '33' }}
+                      actions:
+                      - action_log:
+                          log_level: WARN
+                          max_log_message_length: 500
+                          type: 1
+                          log_values:
+                          - term_string: '{"version":"0.2.0","timestamp":"2023-12-12T14:17:24.432344","severity":"warn","service_id":"eric-scp","extra_data":{"eric.eventId":"ERIC_EVENT_SC_SEPP-546666bfdc","eric.eventType":"ERIC_SC_USFW_USER_DEFINED_EVENT"},"metadata":{"function":"eric-proxy"},"message":"Request with MCC '
+                          - term_var: 'mcc'
+                          - term_string: ' and MNC '
+                          - term_var: 'mnc'
+                          - term_string: ' received"}'
+                      - action_route_to_pool:
+                          pool_name:
+                            term_string: occ
+                          routing_behaviour: ROUND_ROBIN
+
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+              upstream_log_options:
+                flush_upstream_log_on_upstream_stream: true
+              upstream_log:
+                name: "envoy.access_loggers.open_telemetry"
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.access_loggers.open_telemetry.v3.OpenTelemetryAccessLogConfig
+                  common_config:
+                    log_name: otel_access
+                    transport_api_version: V3
+                    grpc_service:
+                      envoy_grpc:
+                        cluster_name: opentelemetry_collector
+                      timeout: 0.250s
+                  body: {string_value: '{ "accesslog": "%DYNAMIC_METADATA(eric.proxy.test:accesslog)%", "accesslog_type": "%ACCESS_LOG_TYPE%" }'}
+                  attributes:
+                    values:
+                    - key: "user_agent"
+                      value:
+                        string_value: "%REQ(USER-AGENT)%"
+                    - key: "accesslog"
+                      value:
+                        string_value: "%DYNAMIC_METADATA(eric.proxy.test:accesslog)%"
+
+          route_config:
+            name: service1_route
+            virtual_hosts:
+            - name: service1
+              domains:
+              - "*"
+              routes:
+              - match:
+                  prefix: "/"
+                route:
+                  cluster: occ_subset
+                decorator:
+                  operation: routeToService1
+  - address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 10001
+    traffic_direction: OUTBOUND
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          tracing:
+            provider:
+              name: envoy.tracers.opentelemetry
+              typed_config:
+                "@type": type.googleapis.com/envoy.config.trace.v3.OpenTelemetryConfig
+                grpc_service:
+                  envoy_grpc:
+                    cluster_name: opentelemetry_collector
+                  timeout: 0.250s
+                service_name: envoy-1
+          codec_type: AUTO
+          stat_prefix: egress_http
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+          route_config:
+            name: envoy2_route
+            virtual_hosts:
+            - name: envoy2
+              domains:
+              - "*"
+              routes:
+              - match:
+                  prefix: "/"
+                route:
+                  cluster: occ_subset
+                decorator:
+                  operation: routeToEnvoy2
+  clusters:
+  - name: occ_subset
+    common_http_protocol_options:
+      idle_timeout: 3600s
+    connect_timeout: 2s
+    dns_lookup_family: V4_ONLY
+    http2_protocol_options:
+      allow_connect: true
+    upstream_bind_config:
+      socket_options:
+      - description: TCP_USER_TIMEOUT
+        int_value: '5030'
+        level: '6'
+        name: '18'
+      source_address:
+        address: 0.0.0.0
+        port_value: 0
+    upstream_connection_options:
+      tcp_keepalive:
+        keepalive_interval: 5
+        keepalive_probes: 6
+        keepalive_time: 5
+    type: STRICT_DNS
+    load_assignment:
+      cluster_name: occ_subset
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: eric-chfsim-1-mnc-123-mcc-123
+                port_value: 80
+            health_check_config: {}
+            hostname: eric-chfsim-1-mnc-123-mcc-123:80
+          health_status: HEALTHY
+          load_balancing_weight: 100
+          metadata:
+            filter_metadata:
+              envoy.lb:
+                host: eric-chfsim-1-mnc-123-mcc-123
+                pool: sepp_rp_A
+        - endpoint:
+            address:
+              socket_address:
+                address: eric-chfsim-2-mnc-123-mcc-123
+                port_value: 80
+            health_check_config: {}
+            hostname: eric-chfsim-2-mnc-123-mcc-123:80
+          health_status: HEALTHY
+          load_balancing_weight: 100
+          metadata:
+            filter_metadata:
+              envoy.lb:
+                host: eric-chfsim-2-mnc-123-mcc-123
+                pool: sepp_rp_A
+        - endpoint:
+            address:
+              socket_address:
+                address: eric-chfsim-3-mnc-456-mcc-456
+                port_value: 80
+            health_check_config: {}
+            hostname: eric-chfsim-3-mnc-456-mcc-456:80
+          health_status: HEALTHY
+          load_balancing_weight: 100
+          metadata:
+            filter_metadata:
+              envoy.lb:
+                host: eric-chfsim-3-mnc-456-mcc-456
+                pool: occ
+        - endpoint:
+            address:
+              socket_address:
+                address: eric-chfsim-4-mnc-456-mcc-456
+                port_value: 80
+            health_check_config: {}
+            hostname: eric-chfsim-4-mnc-456-mcc-456:80
+          health_status: HEALTHY
+          load_balancing_weight: 100
+          metadata:
+            filter_metadata:
+              envoy.lb:
+                host: eric-chfsim-4-mnc-456-mcc-456
+                pool: occ
+        - endpoint:
+            address:
+              socket_address:
+                address: eric-chfsim-5-mnc-456-mcc-456
+                port_value: 80
+            health_check_config: {}
+            hostname: eric-chfsim-5-mnc-456-mcc-456:80
+          health_status: HEALTHY
+          load_balancing_weight: 100
+          metadata:
+            filter_metadata:
+              envoy.lb:
+                host: eric-chfsim-5-mnc-456-mcc-456
+                pool: occ
+  - name: opentelemetry_collector
+    type: STRICT_DNS
+    lb_policy: ROUND_ROBIN
+    typed_extension_protocol_options:
+      envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+        "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+        explicit_http_config:
+          http2_protocol_options: {}
+    load_assignment:
+      cluster_name: opentelemetry_collector
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: opentel-collector
+                port_value: 4317
+
